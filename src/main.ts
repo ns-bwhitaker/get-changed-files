@@ -1,5 +1,10 @@
 import * as core from '@actions/core'
-import {context, GitHub} from '@actions/github'
+import * as github from '@actions/github'
+
+//const GitHub = ghub
+//const GitHub = getOctokit
+const context = github.context
+//import {context, GitHub} from '@actions/github'
 
 type Format = 'space-delimited' | 'csv' | 'json'
 type FileStatus = 'added' | 'modified' | 'removed' | 'renamed'
@@ -7,8 +12,11 @@ type FileStatus = 'added' | 'modified' | 'removed' | 'renamed'
 async function run(): Promise<void> {
   try {
     // Create GitHub client with the API token.
-    const client = new GitHub(core.getInput('token', {required: true}))
+    //const client = new GitHub(core.getInput('token', {required: true}))
     const format = core.getInput('format', {required: true}) as Format
+
+    const token = core.getInput('token', {required: true})
+    const client = github.getOctokit(token)
 
     // Ensure that the format parameter is set properly.
     if (format !== 'space-delimited' && format !== 'csv' && format !== 'json') {
@@ -56,16 +64,24 @@ async function run(): Promise<void> {
       base = ''
       head = ''
     }
-
+    //const response = await client.rest.repos.compareCommitsWithBasehead({
+    //  base,
+    //  head,
+    //  owner: context.repo.owner,
+    //  repo: context.repo.repo
+    // })
+    const basehead = base.concat('...').concat(head)
+    core.info(`basehead: ${basehead}`)
+    core.info('Trying to compare commits using Github Api')
     // Use GitHub's compare two commits API.
     // https://developer.github.com/v3/repos/commits/#compare-two-commits
-    const response = await client.repos.compareCommits({
-      base,
-      head,
+    const response = await client.rest.repos.compareCommitsWithBasehead({
+      basehead,
       owner: context.repo.owner,
       repo: context.repo.repo
     })
 
+    core.info('Received Response from Github Api')
     // Ensure that the request was successful.
     if (response.status !== 200) {
       core.setFailed(
@@ -84,13 +100,28 @@ async function run(): Promise<void> {
 
     // Get the changed files from the response payload.
     const files = response.data.files
+    if (files === undefined) {
+      throw new EvalError()
+    }
     const all = [] as string[],
       added = [] as string[],
       modified = [] as string[],
       removed = [] as string[],
       renamed = [] as string[],
-      addedModified = [] as string[]
+      addedModified = [] as string[],
+      renamedFrom = new Map<string, string>(),
+      fullOutput = []
+
+    const combinedJsonOutput: {[index: string]: string[]} = {}
+
+    combinedJsonOutput['added'] = [] as string[]
+    combinedJsonOutput['modified'] = [] as string[]
+    combinedJsonOutput['removed'] = [] as string[]
+    combinedJsonOutput['renamed'] = [] as string[]
+    combinedJsonOutput['renamedFrom'] = [] as string[]
+
     for (const file of files) {
+      fullOutput.push({filename: file.filename, status: file.status, previousFilename: file.previous_filename})
       const filename = file.filename
       // If we're using the 'space-delimited' format and any of the filenames have a space in them,
       // then fail the step.
@@ -105,16 +136,24 @@ async function run(): Promise<void> {
         case 'added':
           added.push(filename)
           addedModified.push(filename)
+          combinedJsonOutput['added'].push(filename)
           break
         case 'modified':
           modified.push(filename)
           addedModified.push(filename)
+          combinedJsonOutput['modified'].push(filename)
           break
         case 'removed':
           removed.push(filename)
+          combinedJsonOutput['removed'].push(filename)
           break
         case 'renamed':
           renamed.push(filename)
+          if (file.previous_filename) {
+            renamedFrom.set(filename, file.previous_filename)
+            combinedJsonOutput['renamedFrom'].push(file.previous_filename)
+          }
+          combinedJsonOutput['renamed'].push(filename)
           break
         default:
           core.setFailed(
@@ -129,7 +168,9 @@ async function run(): Promise<void> {
       modifiedFormatted: string,
       removedFormatted: string,
       renamedFormatted: string,
-      addedModifiedFormatted: string
+      addedModifiedFormatted: string,
+      renamedFromFormatted: string
+
     switch (format) {
       case 'space-delimited':
         // If any of the filenames have a space in them, then fail the step.
@@ -145,6 +186,7 @@ async function run(): Promise<void> {
         removedFormatted = removed.join(' ')
         renamedFormatted = renamed.join(' ')
         addedModifiedFormatted = addedModified.join(' ')
+        renamedFromFormatted = Array.from(renamedFrom.entries()).join(' ')
         break
       case 'csv':
         allFormatted = all.join(',')
@@ -153,6 +195,7 @@ async function run(): Promise<void> {
         removedFormatted = removed.join(',')
         renamedFormatted = renamed.join(',')
         addedModifiedFormatted = addedModified.join(',')
+        renamedFromFormatted = Array.from(renamedFrom.entries()).join(',')
         break
       case 'json':
         allFormatted = JSON.stringify(all)
@@ -161,6 +204,7 @@ async function run(): Promise<void> {
         removedFormatted = JSON.stringify(removed)
         renamedFormatted = JSON.stringify(renamed)
         addedModifiedFormatted = JSON.stringify(addedModified)
+        renamedFromFormatted = JSON.stringify(renamedFrom)
         break
     }
 
@@ -171,6 +215,8 @@ async function run(): Promise<void> {
     core.info(`Removed: ${removedFormatted}`)
     core.info(`Renamed: ${renamedFormatted}`)
     core.info(`Added or modified: ${addedModifiedFormatted}`)
+    core.info(`RenamedFrom: ${renamedFromFormatted}`)
+    core.info(`JSON Combined: ${JSON.stringify(combinedJsonOutput)}`)
 
     // Set step output context.
     core.setOutput('all', allFormatted)
@@ -179,11 +225,14 @@ async function run(): Promise<void> {
     core.setOutput('removed', removedFormatted)
     core.setOutput('renamed', renamedFormatted)
     core.setOutput('added_modified', addedModifiedFormatted)
+    core.setOutput('renamedFrom', renamedFromFormatted)
+    core.setOutput('fullOutput', JSON.stringify(fullOutput))
+    core.setOutput('jsonCombined', JSON.stringify(combinedJsonOutput))
 
     // For backwards-compatibility
     core.setOutput('deleted', removedFormatted)
-  } catch (error) {
-    core.setFailed(error.message)
+  } catch (e) {
+    core.setFailed((e as Error).message)
   }
 }
 
