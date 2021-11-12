@@ -3793,10 +3793,6 @@ function run() {
                     core.setFailed(`One of your files includes a space. Consider using a different output format or removing spaces from your filenames. ` +
                         "Please submit an issue on this action's GitHub repo.");
                 }
-                let previousFilename = '';
-                if (file.previous_filename) {
-                    previousFilename = file.previous_filename;
-                }
                 all.push(filename);
                 switch (file.status) {
                     case 'added':
@@ -3814,7 +3810,7 @@ function run() {
                         {
                             const r = filename;
                             r.concat('.');
-                            r.concat(previousFilename);
+                            r.concat(file.previous_filename);
                             renamed.push(r);
                         }
                         break;

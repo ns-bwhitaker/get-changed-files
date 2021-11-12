@@ -100,11 +100,6 @@ async function run(): Promise<void> {
             "Please submit an issue on this action's GitHub repo."
         )
       }
-      let previousFilename = ''
-      if (file.previous_filename) {
-        previousFilename = file.previous_filename
-      }
-
       all.push(filename)
       switch (file.status as FileStatus) {
         case 'added':
@@ -122,7 +117,7 @@ async function run(): Promise<void> {
           {
             const r = filename
             r.concat('.')
-            r.concat(previousFilename)
+            r.concat(file.previous_filename)
             renamed.push(r)
           }
           break
