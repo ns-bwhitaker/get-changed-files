@@ -3809,9 +3809,9 @@ function run() {
                     case 'renamed':
                         {
                             const r = filename;
-                            r.concat('.');
-                            r.concat(file.previous_filename);
-                            renamed.push(r);
+                            const re = r.concat('.');
+                            const res = re.concat(file.previous_filename);
+                            renamed.push(res);
                         }
                         break;
                     default:
