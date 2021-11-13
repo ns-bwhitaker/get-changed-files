@@ -3785,6 +3785,7 @@ function run() {
             // Get the changed files from the response payload.
             const files = response.data.files;
             const all = [], added = [], modified = [], removed = [], renamed = [], addedModified = [];
+            const renamedFrom = new Map();
             for (const file of files) {
                 const filename = file.filename;
                 // If we're using the 'space-delimited' format and any of the filenames have a space in them,
@@ -3807,19 +3808,21 @@ function run() {
                         removed.push(filename);
                         break;
                     case 'renamed':
-                        {
-                            const r = filename;
-                            const re = r.concat('.');
-                            const res = re.concat(file.previous_filename);
-                            renamed.push(res);
-                        }
+                        renamed.push(filename);
+                        renamedFrom.set(filename, file.previous_filename);
+                        /**renamedFrom[filename] = file.previous_filename`
+                        `renamedFrom.set(filename,file.previous_filename)`
+                        `const r = filename
+                         const re = r.concat('.')
+                         const res = re.concat(file.previous_filename)
+                         renamed.push(res)`**/
                         break;
                     default:
                         core.setFailed(`One of your files includes an unsupported file status '${file.status}', expected 'added', 'modified', 'removed', or 'renamed'.`);
                 }
             }
             // Format the arrays of changed files.
-            let allFormatted, addedFormatted, modifiedFormatted, removedFormatted, renamedFormatted, addedModifiedFormatted;
+            let allFormatted, addedFormatted, modifiedFormatted, removedFormatted, renamedFormatted, addedModifiedFormatted, renamedFromFormatted;
             switch (format) {
                 case 'space-delimited':
                     // If any of the filenames have a space in them, then fail the step.
@@ -3833,6 +3836,7 @@ function run() {
                     removedFormatted = removed.join(' ');
                     renamedFormatted = renamed.join(' ');
                     addedModifiedFormatted = addedModified.join(' ');
+                    renamedFromFormatted = Array.from(renamedFrom.entries()).join(' ');
                     break;
                 case 'csv':
                     allFormatted = all.join(',');
@@ -3841,6 +3845,7 @@ function run() {
                     removedFormatted = removed.join(',');
                     renamedFormatted = renamed.join(',');
                     addedModifiedFormatted = addedModified.join(',');
+                    renamedFromFormatted = Array.from(renamedFrom.entries()).join(',');
                     break;
                 case 'json':
                     allFormatted = JSON.stringify(all);
@@ -3849,6 +3854,7 @@ function run() {
                     removedFormatted = JSON.stringify(removed);
                     renamedFormatted = JSON.stringify(renamed);
                     addedModifiedFormatted = JSON.stringify(addedModified);
+                    renamedFromFormatted = JSON.stringify(renamedFrom);
                     break;
             }
             // Log the output values.
@@ -3858,6 +3864,7 @@ function run() {
             core.info(`Removed: ${removedFormatted}`);
             core.info(`Renamed: ${renamedFormatted}`);
             core.info(`Added or modified: ${addedModifiedFormatted}`);
+            core.info(`RenamedFrom: ${renamedFromFormatted}`);
             // Set step output context.
             core.setOutput('all', allFormatted);
             core.setOutput('added', addedFormatted);
@@ -3865,6 +3872,7 @@ function run() {
             core.setOutput('removed', removedFormatted);
             core.setOutput('renamed', renamedFormatted);
             core.setOutput('added_modified', addedModifiedFormatted);
+            core.setOutput('renamedFrom', renamedFromFormatted);
             // For backwards-compatibility
             core.setOutput('deleted', removedFormatted);
         }

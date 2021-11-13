@@ -3,7 +3,6 @@ import {context, GitHub} from '@actions/github'
 
 type Format = 'space-delimited' | 'csv' | 'json'
 type FileStatus = 'added' | 'modified' | 'removed' | 'renamed'
-
 async function run(): Promise<void> {
   try {
     // Create GitHub client with the API token.
@@ -90,6 +89,9 @@ async function run(): Promise<void> {
       removed = [] as string[],
       renamed = [] as string[],
       addedModified = [] as string[]
+
+    const renamedFrom = new Map<string, string>()
+
     for (const file of files) {
       const filename = file.filename
       // If we're using the 'space-delimited' format and any of the filenames have a space in them,
@@ -114,12 +116,16 @@ async function run(): Promise<void> {
           removed.push(filename)
           break
         case 'renamed':
-          {
-            const r = filename
-            const re = r.concat('.')
-            const res = re.concat(file.previous_filename)
-            renamed.push(res)
-          }
+          renamed.push(filename)
+
+          renamedFrom.set(filename, file.previous_filename)
+
+          /**renamedFrom[filename] = file.previous_filename`
+          `renamedFrom.set(filename,file.previous_filename)`
+          `const r = filename
+           const re = r.concat('.')
+           const res = re.concat(file.previous_filename)
+           renamed.push(res)`**/
           break
         default:
           core.setFailed(
@@ -134,7 +140,9 @@ async function run(): Promise<void> {
       modifiedFormatted: string,
       removedFormatted: string,
       renamedFormatted: string,
-      addedModifiedFormatted: string
+      addedModifiedFormatted: string,
+      renamedFromFormatted: string
+
     switch (format) {
       case 'space-delimited':
         // If any of the filenames have a space in them, then fail the step.
@@ -150,6 +158,7 @@ async function run(): Promise<void> {
         removedFormatted = removed.join(' ')
         renamedFormatted = renamed.join(' ')
         addedModifiedFormatted = addedModified.join(' ')
+        renamedFromFormatted = Array.from(renamedFrom.entries()).join(' ')
         break
       case 'csv':
         allFormatted = all.join(',')
@@ -158,6 +167,7 @@ async function run(): Promise<void> {
         removedFormatted = removed.join(',')
         renamedFormatted = renamed.join(',')
         addedModifiedFormatted = addedModified.join(',')
+        renamedFromFormatted = Array.from(renamedFrom.entries()).join(',')
         break
       case 'json':
         allFormatted = JSON.stringify(all)
@@ -166,6 +176,7 @@ async function run(): Promise<void> {
         removedFormatted = JSON.stringify(removed)
         renamedFormatted = JSON.stringify(renamed)
         addedModifiedFormatted = JSON.stringify(addedModified)
+        renamedFromFormatted = JSON.stringify(renamedFrom)
         break
     }
 
@@ -176,6 +187,7 @@ async function run(): Promise<void> {
     core.info(`Removed: ${removedFormatted}`)
     core.info(`Renamed: ${renamedFormatted}`)
     core.info(`Added or modified: ${addedModifiedFormatted}`)
+    core.info(`RenamedFrom: ${renamedFromFormatted}`)
 
     // Set step output context.
     core.setOutput('all', allFormatted)
@@ -184,6 +196,7 @@ async function run(): Promise<void> {
     core.setOutput('removed', removedFormatted)
     core.setOutput('renamed', renamedFormatted)
     core.setOutput('added_modified', addedModifiedFormatted)
+    core.setOutput('renamedFrom', renamedFromFormatted)
 
     // For backwards-compatibility
     core.setOutput('deleted', removedFormatted)
