@@ -3786,7 +3786,9 @@ function run() {
             const files = response.data.files;
             const all = [], added = [], modified = [], removed = [], renamed = [], addedModified = [];
             const renamedFrom = new Map();
+            const fullOutput = [];
             for (const file of files) {
+                fullOutput.push({ filename: file.filename, status: file.status, previousFilename: file.previous_filename });
                 const filename = file.filename;
                 // If we're using the 'space-delimited' format and any of the filenames have a space in them,
                 // then fail the step.
@@ -3873,6 +3875,7 @@ function run() {
             core.setOutput('renamed', renamedFormatted);
             core.setOutput('added_modified', addedModifiedFormatted);
             core.setOutput('renamedFrom', renamedFromFormatted);
+            core.setOutput('fullOutput', JSON.stringify(fullOutput));
             // For backwards-compatibility
             core.setOutput('deleted', removedFormatted);
         }

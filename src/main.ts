@@ -91,8 +91,10 @@ async function run(): Promise<void> {
       addedModified = [] as string[]
 
     const renamedFrom = new Map<string, string>()
+    const fullOutput = []
 
     for (const file of files) {
+      fullOutput.push({filename: file.filename, status: file.status, previousFilename: file.previous_filename})
       const filename = file.filename
       // If we're using the 'space-delimited' format and any of the filenames have a space in them,
       // then fail the step.
@@ -117,7 +119,6 @@ async function run(): Promise<void> {
           break
         case 'renamed':
           renamed.push(filename)
-
           renamedFrom.set(filename, file.previous_filename)
 
           /**renamedFrom[filename] = file.previous_filename`
@@ -197,6 +198,7 @@ async function run(): Promise<void> {
     core.setOutput('renamed', renamedFormatted)
     core.setOutput('added_modified', addedModifiedFormatted)
     core.setOutput('renamedFrom', renamedFromFormatted)
+    core.setOutput('fullOutput', JSON.stringify(fullOutput))
 
     // For backwards-compatibility
     core.setOutput('deleted', removedFormatted)
