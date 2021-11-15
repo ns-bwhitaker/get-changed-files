@@ -92,6 +92,13 @@ async function run(): Promise<void> {
 
     const renamedFrom = new Map<string, string>()
     const fullOutput = []
+    const combinedJsonOutput: {[index: string]: string[]} = {}
+
+    combinedJsonOutput['added'] = [] as string[]
+    combinedJsonOutput['modified'] = [] as string[]
+    combinedJsonOutput['removed'] = [] as string[]
+    combinedJsonOutput['renamed'] = [] as string[]
+    combinedJsonOutput['renamedOld'] = [] as string[]
 
     for (const file of files) {
       fullOutput.push({filename: file.filename, status: file.status, previousFilename: file.previous_filename})
@@ -109,18 +116,23 @@ async function run(): Promise<void> {
         case 'added':
           added.push(filename)
           addedModified.push(filename)
+          combinedJsonOutput['added'].push(filename)
           break
         case 'modified':
           modified.push(filename)
           addedModified.push(filename)
+          combinedJsonOutput['modified'].push(filename)
           break
         case 'removed':
           removed.push(filename)
+          combinedJsonOutput['removed'].push(filename)
           break
         case 'renamed':
           renamed.push(filename)
           renamedFrom.set(filename, file.previous_filename)
 
+          combinedJsonOutput['renamed'].push(filename)
+          combinedJsonOutput['renamedFrom'].push(file.previous_filename)
           /**renamedFrom[filename] = file.previous_filename`
           `renamedFrom.set(filename,file.previous_filename)`
           `const r = filename
@@ -189,6 +201,7 @@ async function run(): Promise<void> {
     core.info(`Renamed: ${renamedFormatted}`)
     core.info(`Added or modified: ${addedModifiedFormatted}`)
     core.info(`RenamedFrom: ${renamedFromFormatted}`)
+    core.info(`JSON Combined: ${JSON.stringify(combinedJsonOutput)}`)
 
     // Set step output context.
     core.setOutput('all', allFormatted)
@@ -199,6 +212,7 @@ async function run(): Promise<void> {
     core.setOutput('added_modified', addedModifiedFormatted)
     core.setOutput('renamedFrom', renamedFromFormatted)
     core.setOutput('fullOutput', JSON.stringify(fullOutput))
+    core.setOutput('jsonCombined', JSON.stringify(combinedJsonOutput))
 
     // For backwards-compatibility
     core.setOutput('deleted', removedFormatted)
