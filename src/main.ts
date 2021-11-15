@@ -98,7 +98,7 @@ async function run(): Promise<void> {
     combinedJsonOutput['modified'] = [] as string[]
     combinedJsonOutput['removed'] = [] as string[]
     combinedJsonOutput['renamed'] = [] as string[]
-    combinedJsonOutput['renamedOld'] = [] as string[]
+    combinedJsonOutput['renamedFrom'] = [] as string[]
 
     for (const file of files) {
       fullOutput.push({filename: file.filename, status: file.status, previousFilename: file.previous_filename})
@@ -133,6 +133,7 @@ async function run(): Promise<void> {
 
           combinedJsonOutput['renamed'].push(filename)
           combinedJsonOutput['renamedFrom'].push(file.previous_filename)
+
           /**renamedFrom[filename] = file.previous_filename`
           `renamedFrom.set(filename,file.previous_filename)`
           `const r = filename

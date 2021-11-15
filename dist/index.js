@@ -3792,7 +3792,7 @@ function run() {
             combinedJsonOutput['modified'] = [];
             combinedJsonOutput['removed'] = [];
             combinedJsonOutput['renamed'] = [];
-            combinedJsonOutput['renamedOld'] = [];
+            combinedJsonOutput['renamedFrom'] = [];
             for (const file of files) {
                 fullOutput.push({ filename: file.filename, status: file.status, previousFilename: file.previous_filename });
                 const filename = file.filename;
